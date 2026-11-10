@@ -95,6 +95,8 @@ Use pikaid to identify **users, orders, invoices, uploads, events, and API resou
 
 ## 📚 Canonical specification
 
+The normative specification revision 1.0.4 is pinned to commit `17014d76f568c3ac9f9ce2927c1a018fdbc36d1d` in the API parity checks.
+
 - [Canonical specification](https://github.com/pikaid/pikaid-specs)
 - [Revision 1.0.4](https://github.com/pikaid/pikaid-specs/tree/v1.0.4)
 
