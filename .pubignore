@@ -1,0 +1,22 @@
+# Local agent configuration and scratch space
+opencode.jsonc
+.ai/
+
+# Test-only official conformance tooling and its generated corpus
+tool/official_conformance_adapter.dart
+tool/generate_official_cases.py
+test/official_corpus_test.dart
+test/support/official_cases.dart
+
+# Generated output
+build/
+coverage/
+doc/api/
+
+# OS and editor noise
+.DS_Store
+.idea/
+*.iml
+
+# Lockfile for a library package
+pubspec.lock

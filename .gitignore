@@ -1,0 +1,17 @@
+# Dart tooling
+.dart_tool/
+build/
+coverage/
+doc/api/
+
+# Pub artifacts
+*.lock
+pubspec.lock
+
+# Editor and OS noise
+.DS_Store
+.idea/
+*.iml
+
+# Local agent configuration and scratch space (reports live in .ai/reports/)
+/.ai/

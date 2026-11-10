@@ -1,0 +1,234 @@
+name: CI
+
+on:
+  # Every pushed commit is validated, on any branch; a branch filter here
+  # would leave non-main commits (and the commit that later merges to main)
+  # without hosted evidence.
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Dart ${{ matrix.dart }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dart: ['3.6.0', stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.dart }}
+      - run: dart pub get
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze
+        run: dart analyze --fatal-infos
+      - name: Run tests
+        # Includes the portable conformance matrix (valid, invalid and
+        # overflow corpora), the independent reference oracle, fixture
+        # SHA-256 integrity checks and repository policy checks.
+        run: dart test
+      - name: Run the documented example
+        run: dart run example/main.dart
+
+  web:
+    name: dart2js output
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: dart pub get
+      - name: Compile example with dart2js
+        run: dart compile js example/main.dart -o build/example.js
+      - name: Run compiled example
+        # dart2js resolves the web CSPRNG through the browser `self` global;
+        # expose Node's Web Crypto implementation under that name.
+        run: node -e "globalThis.self = globalThis; require('./build/example.js')"
+
+  web-conformance:
+    name: Conformance (${{ matrix.platform }}, dart2js)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Headless Chrome is preinstalled on GitHub-hosted Ubuntu runners.
+        platform: [chrome, node]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: dart pub get
+      - name: Run portable conformance suites
+        run: >-
+          dart test -p ${{ matrix.platform }}
+          test/web_conformance_test.dart test/conformance_matrix_test.dart
+          test/official_corpus_test.dart
+
+  wasm:
+    name: dart2wasm output
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: dart pub get
+      - name: Compile example with dart2wasm
+        run: dart compile wasm example/main.dart -o build/example.wasm
+      - name: Run compiled example
+        run: node tool/run_wasm.mjs build/example.mjs build/example.wasm | tee build/wasm.log
+      - name: Assert the wasm run exercised the public API
+        run: |
+          grep -q '^round trip ok: true$' build/wasm.log
+          grep -q '^binary round trip: true$' build/wasm.log
+          grep -q '^valid:         true$' build/wasm.log
+          grep -q '^invalid:       false$' build/wasm.log
+      - name: Run portable conformance suites on dart2wasm
+        run: >-
+          dart test -p chrome --compiler dart2wasm
+          test/web_conformance_test.dart test/conformance_matrix_test.dart
+          test/official_corpus_test.dart
+
+  official-conformance:
+    name: Official suite (Dart ${{ matrix.dart }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dart: ['3.6.0', stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.dart }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch the pinned official conformance suite
+        env:
+          SUITE_COMMIT: 059780cc0e5b113443812720d95c630649bf3aa3
+        run: |
+          set -euo pipefail
+          suite="$RUNNER_TEMP/pikaid-specs"
+          git init --quiet "$suite"
+          git -C "$suite" remote add origin https://github.com/pikaid/pikaid-specs.git
+          git -C "$suite" fetch --quiet --depth 1 origin "$SUITE_COMMIT"
+          git -C "$suite" checkout --quiet FETCH_HEAD
+          test "$(git -C "$suite" rev-parse HEAD)" = "$SUITE_COMMIT"
+      - name: Install official suite Python dependencies
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet \
+            -r "$RUNNER_TEMP/pikaid-specs/conformance/tools/requirements.txt"
+      - name: Assert the exact suite dependency version
+        run: |
+          set -euo pipefail
+          requirement="$RUNNER_TEMP/pikaid-specs/conformance/tools/requirements.txt"
+          test "$(grep -E '^jsonschema==' "$requirement")" = 'jsonschema==4.26.0'
+          "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          import importlib.metadata as metadata
+          import sys
+
+          expected = "4.26.0"
+          installed = metadata.version("jsonschema")
+          print(
+              f"jsonschema pinned={expected} installed={installed} "
+              f"python={sys.version.split()[0]}"
+          )
+          if installed != expected:
+              raise SystemExit(
+                  f"jsonschema version mismatch: {installed} != {expected}"
+              )
+          PY
+      - name: Verify suite integrity and expectations
+        working-directory: ${{ runner.temp }}/pikaid-specs/conformance
+        run: |
+          set -euo pipefail
+          sha256sum -c SHA256SUMS
+          "$RUNNER_TEMP/venv/bin/python" tools/verify_vectors.py \
+            --expect-status OFFICIAL \
+            --expect-package-revision 1.0.0 \
+            --expect-spec-revision 1.0.4
+      - name: Run the suite's own checks
+        working-directory: ${{ runner.temp }}/pikaid-specs/conformance
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/venv/bin/python" -m unittest discover -s tools/tests -v
+          node tools/verify_oracle_node.mjs
+      - run: dart pub get
+      - name: Verify the committed official corpus is current
+        run: >-
+          python3 tool/generate_official_cases.py
+          --suite "$RUNNER_TEMP/pikaid-specs/conformance" --check
+      - name: Run the official cross-language adapter
+        run: |
+          set -euo pipefail
+          mkdir -p build/official-conformance
+          "$RUNNER_TEMP/venv/bin/python" \
+            "$RUNNER_TEMP/pikaid-specs/conformance/tools/run_adapter.py" \
+            --automated-only \
+            --report-json build/official-conformance/report.json \
+            -- dart run tool/official_conformance_adapter.dart
+      - name: Upload the official conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-conformance-${{ matrix.dart }}
+          path: build/official-conformance/report.json
+          if-no-files-found: error
+
+  coverage:
+    name: Coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - name: Collect coverage
+        run: dart test --coverage=coverage
+      - name: Format LCOV
+        run: >-
+          dart run coverage:format_coverage
+          --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+      - name: Enforce 90% line coverage
+        run: dart run tool/check_coverage.dart coverage/lcov.info
+
+  package:
+    name: Package validation and consumer smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - name: Validate package contents
+        run: dart pub publish --dry-run
+      - name: Stage the exact publish inventory
+        # `dart pub` has no `pack` subcommand, so the staged file set is derived
+        # from the authoritative dry-run inventory and re-verified by
+        # re-publishing it in a temporary directory.
+        run: dart run tool/stage_package.dart build/package
+      - name: Assert archive hygiene
+        run: |
+          set -euo pipefail
+          for forbidden in .ai .dart_tool build coverage doc pubspec.lock .git opencode.jsonc; do
+            if [ -e "build/package/$forbidden" ]; then
+              echo "::error::forbidden path in staged package: $forbidden"
+              exit 1
+            fi
+          done
+          test -f build/package/lib/pikaid.dart
+          test ! -e build/package/.pubignore
+      - name: External consumer smoke test
+        run: dart run tool/package_consumer_check.dart build/package

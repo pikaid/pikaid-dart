@@ -1,0 +1,20 @@
+name: pikaid
+description: >-
+  Official Dart implementation of pikaid: compact, chronologically sortable
+  26-character Base36 identifiers with 96 bits of CSPRNG randomness.
+version: 1.0.0
+repository: https://github.com/pikaid/pikaid-dart
+issue_tracker: https://github.com/pikaid/pikaid-dart/issues
+topics:
+  - identifiers
+  - id-generator
+  - base36
+  - sortable
+
+environment:
+  sdk: ^3.6.0
+
+dev_dependencies:
+  coverage: ^1.11.0
+  lints: '>=5.0.0 <7.0.0'
+  test: ^1.25.0
