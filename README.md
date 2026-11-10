@@ -1,60 +1,50 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pikaid/pikaid-specs/v1.0.4/logo.png" alt="pikaid" width="300" />
+  <a href="https://github.com/pikaid/pikaid-specs">
+    <img src="https://raw.githubusercontent.com/pikaid/pikaid-specs/v1.0.4/logo.png" alt="pikaid" width="300">
+  </a>
 </p>
 
 <p align="center">
-  <strong>Small · Sortable · Secure IDs</strong>
+  <strong>Small · Sortable · Secure ID generator</strong>
 </p>
 
-# pikaid — Official Dart Implementation
+<div align="center">
 
-[![Dart](https://img.shields.io/badge/Dart-%E2%89%A53.6-0175C2?logo=dart)](https://dart.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Dart](https://img.shields.io/badge/language-Dart-0175C2.svg)](https://github.com/pikaid/pikaid-dart)
+[![CI](https://github.com/pikaid/pikaid-dart/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pikaid/pikaid-dart/actions/workflows/ci.yml)
+[![Official implementation](https://img.shields.io/badge/official-implementation-2e7d32.svg)](https://github.com/pikaid/pikaid-specs)
+[![Specification 1.0.4](https://img.shields.io/badge/spec-1.0.4-4b56a6.svg)](https://github.com/pikaid/pikaid-specs/tree/v1.0.4)
 
-The official Dart implementation of [pikaid](https://github.com/pikaid): compact,
-chronologically sortable identifiers with 96 bits of cryptographic randomness.
+</div>
 
-A pikaid is exactly **26 lowercase Base36 characters** — a 7-character
-whole-second Unix timestamp followed by 19 characters encoding 96 bits of
-randomness — with an equivalent **17-byte binary representation**. The
-identifier format is immutable and unversioned; specification revisions do not
-change the identifiers.
+**pikaid** is the **official Dart implementation** of a compact, chronologically sortable, collision-resistant identifier format for databases, APIs, and distributed systems.
 
-## Status
+This is the immutable, unversioned [pikaid format](https://github.com/pikaid/pikaid-specs/tree/v1.0.4), documented in specification revision **1.0.4**.
 
-The implementation, conformance suite and CI configuration in this repository
-target [pikaid specification revision 1.0.4][spec] (commit
-`17014d76f568c3ac9f9ce2927c1a018fdbc36d1d`). The package is **not yet
-published on pub.dev**; install it from Git or from a local checkout. Version
-1.0.0 is prepared for the first stable release once a public source repository
-and pub.dev publishing credentials are available.
+## ✨ Why pikaid?
 
-[spec]: https://github.com/pikaid/pikaid-specs/tree/v1.0.4
+- **Short:** Compact, readable IDs for URLs, logs, and API resources.
+- **Sortable:** Lexicographically ordered by timestamp, with **one-second precision**.
+- **Collision-resistant:** 96 bits of cryptographic randomness make collisions extremely unlikely, never impossible.
+- **Storage-friendly:** Use `BINARY(17)` or readable `CHAR(26)`.
+- **Distributed-friendly:** No central sequence generator or coordination required.
 
-## Conformance status
+## 🧬 Identifier format
 
-This package is validated against the official cross-language conformance suite
-at commit `059780cc0e5b113443812720d95c630649bf3aa3` (suite package revision
-`1.0.0`, specification revision `1.0.4`, status `OFFICIAL`). The test-only
-adapter `tool/official_conformance_adapter.dart` delegates every operation to
-`package:pikaid/pikaid.dart`; all expected values come from the suite fixtures,
-never from this package. The adapter is excluded from the published archive.
+A pikaid contains **26 lowercase Base36 characters**: a **7-character Unix-seconds timestamp** followed by **19 characters encoding 96 bits of cryptographic randomness**. Its binary form is **17 bytes**: 5 unsigned big-endian timestamp bytes followed by 12 randomness bytes.
 
-Automated conformance is not certification:
+![Identifier structure](https://raw.githubusercontent.com/pikaid/pikaid-specs/v1.0.4/structure.svg)
 
-- `tools/run_adapter.py --automated-only` runs the automated cases and exits
-  `0` when they pass. Its status is
-  `AUTOMATED_PASS_AUDIT_NOT_PERFORMED`; it is **not** a conformance
-  certification.
-- A run without `--automated-only` exits `3`
-  (`AUTOMATED_PASS_AUDIT_REQUIRED`) while the two manual CSPRNG security audits,
-  `P-GENERATE-RNG-SOURCE` and `P-GENERATE-RNG-FAILURE`, have no recorded human
-  evidence.
-- Those two audits remain **outstanding** (`MANUAL_EVIDENCE_REQUIRED`) for this
-  repository. No certification is claimed; only the automated runs in the
-  pinned-suite CI job and the local audit reports have passed.
+> **Ordering:** Different seconds sort chronologically. Within the same second, randomness—not issuance order—decides the order.
 
-## Installation
+> **Security:** These are identifiers, **not secrets**, session credentials, authentication tokens, or API keys.
+
+## ⚙️ Requirements
+
+Dart SDK 3.6 or newer.
+
+## 📦 Installation
 
 Until the package is published, add a Git dependency:
 
@@ -74,9 +64,9 @@ dependencies:
     path: ../pikaid-dart
 ```
 
-Then run `dart pub get`. The minimum supported SDK is Dart **3.6.0**.
+Then run `dart pub get`. Save the example below as `bin/main.dart`, then execute `dart run bin/main.dart`. The minimum supported SDK is Dart **3.6.0**.
 
-## Quick start
+## 🚀 Basic Usage
 
 ```dart
 import 'package:pikaid/pikaid.dart';
@@ -99,30 +89,56 @@ void main() {
 26-character form, and `==`/`hashCode` compare the full timestamp and all 12
 randomness bytes.
 
-## Format
+## 💡 Example Use Case
 
-| Field      | Text offsets | Text width | Binary offsets | Binary width | Meaning                                   |
-| ---------- | -----------: | ---------: | -------------: | -----------: | ----------------------------------------- |
-| Timestamp  |         `0–6` |  7 chars   |          `0–4` |      5 bytes | Unix seconds since `1970-01-01T00:00:00Z` |
-| Randomness |        `7–25` | 19 chars   |         `5–16` |     12 bytes | Uniform CSPRNG randomness (96 bits)       |
-| **Total**  |       `0–25` |  **26**    |         `0–16` | **17 bytes** |                                           |
+Use pikaid to identify **users, orders, invoices, uploads, events, and API resources**. Independent services can generate compact IDs without a shared counter, while timestamp-based ordering helps with indexing, sorting, and logs.
 
-Both fields are unsigned, big-endian and left-zero-padded in the text form.
-The alphabet is exactly `0123456789abcdefghijklmnopqrstuvwxyz`. Uppercase
-letters, separators, prefixes, suffixes and checksums are not part of the
-format.
+## 📚 Canonical specification
 
-Representable ranges:
+- [Canonical specification](https://github.com/pikaid/pikaid-specs)
+- [Revision 1.0.4](https://github.com/pikaid/pikaid-specs/tree/v1.0.4)
 
-- Timestamp: `0 .. 36^7 − 1` = `0 .. 78,364,164,095`
-  (maximum `4453-04-05T15:21:35Z`).
-- Randomness: `0 .. 2^96 − 1`.
+Specification revisions describe the format; they do not change the encoded identifiers.
 
-Nineteen Base36 characters can encode values above `2^96 − 1`; such suffixes
-are **invalid**, even though their length and alphabet are correct. Likewise, a
-17-byte buffer whose timestamp exceeds `36^7 − 1` is invalid.
+## 🧩 API Reference
 
-## Usage
+| Member | Description |
+| ------ | ----------- |
+| `Pikaid.generate({randomSource})` | Generate for the current UTC second. |
+| `Pikaid.generateAt(timestamp, {randomSource})` | Generate with an explicit, range-checked timestamp. |
+| `Pikaid.generateBinary({randomSource})` | Generate directly as 17 bytes. |
+| `Pikaid.generateBinaryAt(timestamp, {randomSource})` | Generate 17 bytes with an explicit timestamp. |
+| `Pikaid.fromComponents({timestamp, randomness})` | Rebuild from a timestamp and exactly 12 randomness bytes. |
+| `Pikaid.parse(String)` | Strict text parsing; throws `FormatException`. |
+| `Pikaid.tryParse(String)` | Strict text parsing; returns `null` on invalid input. |
+| `Pikaid.isValid(String)` | Full semantic validity predicate. |
+| `Pikaid.isWellFormed(String)` | Length and alphabet only. |
+| `Pikaid.fromBinary(List<int>)` | Strict 17-byte decoding; throws `FormatException`. |
+| `id.toBinary()` | Fresh 17-byte `Uint8List`. |
+| `id.timestamp` | Whole Unix seconds in `0..maxTimestamp`. |
+| `id.timestampUtc` | UTC `DateTime` with one-second precision. |
+| `id.randomness` | Unmodifiable 12-byte view. |
+| `id.randomnessHex` | 24 lowercase hexadecimal characters. |
+| `id.compareTo(other)` | Timestamp first, then unsigned randomness bytes. |
+| `id == other`, `id.hashCode` | Full value equality. |
+
+Constants: `Pikaid.stringLength` (26), `Pikaid.binaryLength` (17),
+`Pikaid.timestampLength` (7), `Pikaid.randomnessLength` (19),
+`Pikaid.randomnessBytes` (12) and `Pikaid.maxTimestamp`
+(78,364,164,095).
+
+### Errors
+
+| Operation | Invalid input | Error |
+| --------- | ------------- | ----- |
+| `Pikaid.parse`, `Pikaid.fromBinary` | Wrong length, alphabet, byte range or out-of-range field | `FormatException` |
+| `Pikaid.fromComponents` | Timestamp or randomness byte out of range | `RangeError` |
+| `Pikaid.fromComponents` | `randomness.length != 12` | `ArgumentError` |
+| `Pikaid.generate`, `Pikaid.generateAt` | Timestamp or system clock outside `0..maxTimestamp` | `RangeError` |
+| Any generation with the default secure source | CSPRNG unavailable or throws | `PikaidEntropyException` |
+| Generation with a custom random source | The source throws | That error, propagated unchanged; generation never falls back to weaker entropy |
+
+`tryParse` and `isValid` convert `FormatException` into `null` / `false`.
 
 ### Parsing and validation
 
@@ -214,47 +230,7 @@ Use a custom source only for tests or for a platform CSPRNG that is at least as
 strong as `Random.secure()`. `SecurePikaidRandomSource` is the default and is
 backed by `Random.secure()`.
 
-## API
-
-| Member | Description |
-| ------ | ----------- |
-| `Pikaid.generate({randomSource})` | Generate for the current UTC second. |
-| `Pikaid.generateAt(timestamp, {randomSource})` | Generate with an explicit, range-checked timestamp. |
-| `Pikaid.generateBinary({randomSource})` | Generate directly as 17 bytes. |
-| `Pikaid.generateBinaryAt(timestamp, {randomSource})` | Generate 17 bytes with an explicit timestamp. |
-| `Pikaid.fromComponents({timestamp, randomness})` | Rebuild from a timestamp and exactly 12 randomness bytes. |
-| `Pikaid.parse(String)` | Strict text parsing; throws `FormatException`. |
-| `Pikaid.tryParse(String)` | Strict text parsing; returns `null` on invalid input. |
-| `Pikaid.isValid(String)` | Full semantic validity predicate. |
-| `Pikaid.isWellFormed(String)` | Length and alphabet only. |
-| `Pikaid.fromBinary(List<int>)` | Strict 17-byte decoding; throws `FormatException`. |
-| `id.toBinary()` | Fresh 17-byte `Uint8List`. |
-| `id.timestamp` | Whole Unix seconds in `0..maxTimestamp`. |
-| `id.timestampUtc` | UTC `DateTime` with one-second precision. |
-| `id.randomness` | Unmodifiable 12-byte view. |
-| `id.randomnessHex` | 24 lowercase hexadecimal characters. |
-| `id.compareTo(other)` | Timestamp first, then unsigned randomness bytes. |
-| `id == other`, `id.hashCode` | Full value equality. |
-
-Constants: `Pikaid.stringLength` (26), `Pikaid.binaryLength` (17),
-`Pikaid.timestampLength` (7), `Pikaid.randomnessLength` (19),
-`Pikaid.randomnessBytes` (12) and `Pikaid.maxTimestamp`
-(78,364,164,095).
-
-### Errors
-
-| Operation | Invalid input | Error |
-| --------- | ------------- | ----- |
-| `Pikaid.parse`, `Pikaid.fromBinary` | Wrong length, alphabet, byte range or out-of-range field | `FormatException` |
-| `Pikaid.fromComponents` | Timestamp or randomness byte out of range | `RangeError` |
-| `Pikaid.fromComponents` | `randomness.length != 12` | `ArgumentError` |
-| `Pikaid.generate`, `Pikaid.generateAt` | Timestamp or system clock outside `0..maxTimestamp` | `RangeError` |
-| Any generation with the default secure source | CSPRNG unavailable or throws | `PikaidEntropyException` |
-| Generation with a custom random source | The source throws | That error, propagated unchanged; generation never falls back to weaker entropy |
-
-`tryParse` and `isValid` convert `FormatException` into `null` / `false`.
-
-## Ordering
+## 🔄 Order Guarantee
 
 `compareTo` compares the timestamp first and the 12 randomness bytes second.
 This matches ASCII lexicographic order of the text form and unsigned bytewise
@@ -265,36 +241,23 @@ order of the binary form.
   generation order. pikaid is **not** a monotonic sequence generator, and its
   timestamp has one-second precision.
 
-## Database storage
+## 🛢 Storage Recommendations
 
-| Representation | Recommended column | Comparison requirement |
-| -------------- | ------------------ | ---------------------- |
-| Binary | `BINARY(17)` or an equivalent fixed-width binary type | Unsigned bytewise |
-| Text | `CHAR(26)` / `VARCHAR(26)` | Binary or another verified ASCII-compatible collation |
+| Representation | Size | Recommended for |
+| --- | ---: | --- |
+| **BINARY(17)** | 17 bytes | Compact primary keys and indexes |
+| **CHAR(26)** | 26 characters | Readable SQL, debugging, URLs, and logs |
 
-Database default collations are not automatically safe for bytewise ordering
-and equality. For example, MySQL/MariaDB text columns should use a binary
-collation rather than a case-insensitive default.
+Use an **ASCII bytewise/binary collation** for text columns (for example, `ascii_bin` on MariaDB/MySQL). Case-insensitive or locale-aware sorting is not a substitute for canonical bytewise comparison.
 
-## Security
+## ✅ Verification and release status
 
-- Every generated suffix contains **96 bits** of CSPRNG randomness
-  (`2^96 ≈ 7.92 × 10^28` values).
-- Generation uses `Random.secure()`. There is no non-cryptographic fallback,
-  counter or timestamp-derived entropy; a failure raises
-  `PikaidEntropyException`.
-- Collisions are not impossible. For `n` identifiers within one timestamp
-  bucket, the approximate collision probability is
-  `1 − exp(−n(n−1) / (2 × 2^96))`; the roughly 50% threshold is about
-  `3.31 × 10^14` identifiers in the same second. Applications should enforce
-  uniqueness where required.
-- The timestamp is readable from every identifier. pikaid values are **not
-  secrets**, authentication tokens or authorization evidence.
-- There is no checksum: a transcription error can produce another valid
-  identifier. Validate references against real data when error detection
-  matters.
+The [CI workflow](https://github.com/pikaid/pikaid-dart/actions/workflows/ci.yml) runs native tests, pinned automated conformance checks, and language-specific quality gates. To run the native checks locally from a checkout: `dart test`.
 
-## Platform support
+**Automated passing tests are not a security certification.** The independent CSPRNG source and failure-path audits (`P-GENERATE-RNG-SOURCE` and `P-GENERATE-RNG-FAILURE`) still require separate human evidence.
+
+<details>
+<summary>Platform, tooling, and conformance details</summary>
 
 The conversion code avoids `BigInt` and 64-bit-only arithmetic, using byte
 arrays with small intermediates. The package itself uses only `dart:typed_data`
@@ -316,8 +279,6 @@ Verification status:
   with `dart compile wasm` and `dart test -p chrome --compiler dart2wasm` under
   Node 22 and headless Chrome, in CI. This includes text/binary round trips and
   the full valid/invalid conformance corpora.
-
-## Development
 
 ```bash
 dart pub get
@@ -379,12 +340,35 @@ Dart 3.6.0 (the minimum supported SDK) and stable, on dart2js under Node and
 headless Chrome, on dart2wasm, the coverage gate, and the package/consumer job.
 Local results are validated on Dart 3.6.0 and Dart 3.13.7.
 
-## License
+</details>
 
-MIT. See [LICENSE](LICENSE).
+Registry publication is not implied by a green CI: use the installation method documented above.
 
-## Links
+## 🤝 Contributing
 
-- [pikaid specification revision 1.0.4][spec]
-- [pikaid organization](https://github.com/pikaid)
-- [Issue tracker](https://github.com/pikaid/pikaid-dart/issues)
+Contributions are always welcome! 💙
+
+Whether you're fixing a typo, improving documentation, adding tests, or making pikaid even better, every contribution is appreciated.
+
+**Want to help? Here's how:**
+
+- 🐛 **Found a bug?** [Open an issue](https://github.com/pikaid/pikaid-dart/issues) with clear reproduction steps.
+- 💡 **Have an idea?** Start with an issue before making major changes.
+- 🛠️ **Ready to contribute?** Open a pull request explaining your changes.
+- 🧪 **Keep it tested.** Add meaningful regression tests for behavior changes and follow the existing conventions.
+- ✅ **Make sure CI passes.** All required checks must be green before a pull request is merged. No shortcuts!
+
+**One important rule:** pikaid's identifier format is immutable. Contributions must preserve the [canonical specification (revision 1.0.4)](https://github.com/pikaid/pikaid-specs/tree/v1.0.4).
+
+🔐 **Found a security vulnerability?** Report it privately using GitHub's security reporting (when available), or [contact the maintainer](mailto:larananas.dev@proton.me)—not through a public issue.
+
+**Every improvement matters, big or small. Thanks for helping make pikaid better!** 🐇
+
+## 📄 License
+
+The implementation is available under the [MIT License](LICENSE).
+
+## ✉️ Contact
+
+For licensing or project-related questions: [larananas.dev@proton.me](mailto:larananas.dev@proton.me).
+
