@@ -2,7 +2,7 @@ name: pikaid
 description: >-
   Official Dart implementation of pikaid: compact, chronologically sortable
   26-character Base36 identifiers with 96 bits of CSPRNG randomness.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/pikaid/pikaid-dart
 issue_tracker: https://github.com/pikaid/pikaid-dart/issues
 topics:

@@ -6,6 +6,15 @@ documented in this file.
 The pikaid identifier format is immutable and unversioned. This changelog
 tracks the Dart package only.
 
+## 1.0.1 — 2026-11-10
+
+- Package release metadata corrected to version 1.0.1; no changes to the
+  public Dart API or PikaID identifier format.
+- Automated pub.dev publication now checks the Git tag against the declared
+  package version and requires the full Dart CI and security workflows to pass.
+- GitHub Actions dependencies are pinned to reviewed commit SHAs, and checkout
+  credentials are not persisted between steps.
+
 ## 1.0.0 — 2026-11-07
 
 First stable release, targeting pikaid specification revision 1.0.4. No public
